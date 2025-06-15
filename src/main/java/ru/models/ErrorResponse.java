@@ -2,9 +2,9 @@ package ru.models;
 
 import lombok.Data;
 
+// Модель ответа API с ошибкой
 @Data
-// Ошибка API
 public class ErrorResponse {
-    private boolean success;
-    private String message;
+    private boolean success; // Статус выполнения запроса
+    private String message;  // Сообщение об ошибке
 }

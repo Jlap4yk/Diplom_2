@@ -5,9 +5,9 @@ import lombok.Data;
 
 import java.util.List;
 
+// Модель запроса для создания заказа
 @Data
 @AllArgsConstructor
-// Запрос на создание заказа
 public class OrderRequest {
-    private List<String> ingredients;
+    private List<String> ingredients; // Список идентификаторов ингредиентов
 }

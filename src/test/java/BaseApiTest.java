@@ -6,23 +6,29 @@ import org.junit.Before;
 import static io.restassured.RestAssured.given;
 
 public abstract class BaseApiTest {
-    protected static final String BASE_URL = "https://stellarburgers.nomoreparties.site";
-    protected static final String USER_ENDPOINT = "/api/auth/user";
+    // Базовый URL сервиса Stellar Burgers
+    protected static final String API_BASE_URL = "https://stellarburgers.nomoreparties.site";
+    // Конечная точка для операций с пользователем
+    protected static final String USER_API_ENDPOINT = "/api/auth/user";
 
+    // Настройка RestAssured перед запуском тестов
     @Before
-    public void setUp() {
-        RestAssured.baseURI = BASE_URL;
+    public void configureRestAssured() {
+        RestAssured.baseURI = API_BASE_URL;
+        // Включение фильтра Allure для отчетов
         RestAssured.filters(new AllureRestAssured());
+        // Логирование запросов и ответов при ошибках
         RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
     }
 
-    @Step("Удаление тестового пользователя")
-    protected void deleteUser(String accessToken) {
-        if (accessToken != null) {
+    // Удаление тестового пользователя
+    @Step("Удаление тестового пользователя из системы")
+    protected void cleanupUser(String authToken) {
+        if (authToken != null && !authToken.isEmpty()) {
             given()
-                    .header("Authorization", accessToken)
+                    .header("Authorization", authToken)
                     .when()
-                    .delete(USER_ENDPOINT)
+                    .delete(USER_API_ENDPOINT)
                     .then()
                     .statusCode(202);
         }

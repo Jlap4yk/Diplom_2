@@ -5,13 +5,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+// Модель данных пользователя для API
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {
-    private String email;
-    private String password;
-    private String name;
+    private String email;    // Электронная почта пользователя
+    private String password; // Пароль пользователя
+    private String name;     // Имя пользователя
 }
-

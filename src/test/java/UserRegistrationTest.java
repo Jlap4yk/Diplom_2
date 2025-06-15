@@ -14,51 +14,49 @@ import static org.apache.http.HttpStatus.SC_FORBIDDEN;
 import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.CoreMatchers.equalTo;
 
-@Epic("API Stellar Burgers")
-@Feature("Регистрация пользователя")
+@Epic("Stellar Burgers API")
+@Feature("Тестирование регистрации пользователей")
 public class UserRegistrationTest extends BaseApiTest {
 
-    private User testUser;
-    private String accessToken;
+    private User newUser;
+    private String authToken;
 
+    // Инициализация тестового пользователя
     @Before
-    public void setUp() {
-        super.setUp();
-        testUser = User.builder()
+    public void setupUserData() {
+        super.configureRestAssured();
+        newUser = User.builder()
                 .email("test-user-" + UUID.randomUUID() + "@yandex.ru")
-                .password("StrongPassword123!")
+                .password("SecurePass123!")
                 .name("Test User")
                 .build();
     }
 
+    // Очистка тестовых данных
     @After
-    public void tearDown() {
-        if (accessToken != null && !accessToken.isEmpty()) {
-            deleteUser(accessToken);
+    public void cleanupUserData() {
+        if (authToken != null && !authToken.isEmpty()) {
+            cleanupUser(authToken);
         }
     }
 
     @Test
-    @DisplayName("Успешная регистрация уникального пользователя")
-    public void testCreateUniqueUserSuccessfully() {
-        Response response = UserApi.registerUser(testUser);
-
+    @DisplayName("Проверка успешной регистрации уникального пользователя")
+    public void checkUniqueUserCreation() {
+        Response response = UserApi.createUserAccount(newUser);
         response.then()
                 .statusCode(SC_OK)
                 .body("success", equalTo(true));
-
-        accessToken = response.path("accessToken");
+        authToken = response.path("accessToken");
     }
 
     @Test
-    @DisplayName("Регистрация существующего пользователя")
-    public void testCreateDuplicateUserFails() {
-        // Первая регистрация - должна быть успешной
-        Response firstRegistration = UserApi.registerUser(testUser);
-        accessToken = firstRegistration.path("accessToken");
+    @DisplayName("Проверка ошибки при регистрации дублирующего пользователя")
+    public void checkDuplicateUserCreationFailure() {
+        Response firstResponse = UserApi.createUserAccount(newUser);
+        authToken = firstResponse.path("accessToken");
 
-        // Попытка повторной регистрации
-        UserApi.registerUser(testUser)
+        UserApi.createUserAccount(newUser)
                 .then()
                 .statusCode(SC_FORBIDDEN)
                 .body("success", equalTo(false))
@@ -66,51 +64,51 @@ public class UserRegistrationTest extends BaseApiTest {
     }
 
     @Test
-    @DisplayName("Создание пользователя без пароля")
-    public void testCreateUserWithoutPasswordFails() {
-        User userWithoutPassword = User.builder()
-                .email("test-user-" + UUID.randomUUID() + "@yandex.ru")
-                .password(null)
-                .name("Test User")
-                .build();
-
-        UserApi.registerUser(userWithoutPassword)
-                .then()
-                .statusCode(SC_FORBIDDEN)
-                .body("success", equalTo(false))
-                .body("message", equalTo("Email, password and name are required fields"));
+    @DisplayName("Проверка ошибки при регистрации без пароля")
+    public void checkUserCreationFailureWithoutPassword() {
+        User invalidUser = createInvalidUser("password");
+        validateInvalidUserCreation(invalidUser);
     }
 
     @Test
-    @DisplayName("Создание пользователя без email")
-    public void testCreateUserWithoutEmailFails() {
-        User userWithoutEmail = User.builder()
-                .email(null)
-                .password("ValidPassword123!")
-                .name("Test User")
-                .build();
-
-        UserApi.registerUser(userWithoutEmail)
-                .then()
-                .statusCode(SC_FORBIDDEN)
-                .body("success", equalTo(false))
-                .body("message", equalTo("Email, password and name are required fields"));
+    @DisplayName("Проверка ошибки при регистрации без email")
+    public void checkUserCreationFailureWithoutEmail() {
+        User invalidUser = createInvalidUser("email");
+        validateInvalidUserCreation(invalidUser);
     }
 
     @Test
-    @DisplayName("Создание пользователя без имени")
-    public void testCreateUserWithoutNameFails() {
-        User userWithoutName = User.builder()
-                .email("test-user-" + UUID.randomUUID() + "@yandex.ru")
-                .password("ValidPassword123!")
-                .name(null)
-                .build();
+    @DisplayName("Проверка ошибки при регистрации без имени")
+    public void checkUserCreationFailureWithoutName() {
+        User invalidUser = createInvalidUser("name");
+        validateInvalidUserCreation(invalidUser);
+    }
 
-        UserApi.registerUser(userWithoutName)
+    // Вспомогательный метод для создания пользователя с отсутствующим полем
+    private User createInvalidUser(String missingField) {
+        User.UserBuilder builder = User.builder()
+                .email("test-user-" + UUID.randomUUID() + "@yandex.ru")
+                .password("SecurePass123!")
+                .name("Test User");
+
+        switch (missingField) {
+            case "email":
+                return builder.email(null).build();
+            case "password":
+                return builder.password(null).build();
+            case "name":
+                return builder.name(null).build();
+            default:
+                return builder.build();
+        }
+    }
+
+    // Вспомогательный метод для проверки ошибки регистрации
+    private void validateInvalidUserCreation(User user) {
+        UserApi.createUserAccount(user)
                 .then()
                 .statusCode(SC_FORBIDDEN)
                 .body("success", equalTo(false))
                 .body("message", equalTo("Email, password and name are required fields"));
     }
 }
-

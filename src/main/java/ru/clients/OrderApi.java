@@ -11,20 +11,23 @@ import static io.restassured.RestAssured.given;
 
 @UtilityClass
 public class OrderApi {
+    // Конечная точка API для заказов
     private static final String ORDERS_ENDPOINT = "/api/orders";
 
+    // Создание заказа с авторизацией
     @Step("Создание заказа с авторизацией")
-    public static Response createOrder(String accessToken, List<String> ingredients) {
+    public static Response submitOrderWithAuth(String authToken, List<String> ingredients) {
         return given()
-                .header("Authorization", accessToken)
+                .header("Authorization", authToken)
                 .contentType("application/json")
                 .body(new OrderRequest(ingredients))
                 .when()
                 .post(ORDERS_ENDPOINT);
     }
 
+    // Создание заказа без авторизации
     @Step("Создание заказа без авторизации")
-    public static Response createOrderWithoutAuth(List<String> ingredients) {
+    public static Response submitOrderWithoutAuth(List<String> ingredients) {
         return given()
                 .contentType("application/json")
                 .body(new OrderRequest(ingredients))
@@ -32,10 +35,11 @@ public class OrderApi {
                 .post(ORDERS_ENDPOINT);
     }
 
+    // Получение заказов пользователя
     @Step("Получение заказов пользователя")
-    public static Response getUserOrders(String accessToken) {
+    public static Response fetchUserOrders(String authToken) {
         return given()
-                .header("Authorization", accessToken)
+                .header("Authorization", authToken)
                 .when()
                 .get(ORDERS_ENDPOINT);
     }

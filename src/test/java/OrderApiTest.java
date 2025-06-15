@@ -1,6 +1,7 @@
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
 import io.qameta.allure.junit4.DisplayName;
+import io.restassured.response.Response;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -18,29 +19,31 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.emptyString;
 
 @Epic("Stellar Burgers API")
-@Feature("Работа с заказами и ингредиентами")
+@Feature("Тестирование заказов и ингредиентов")
 public class OrderApiTest extends BaseApiTest {
 
-    private String accessToken;
-    private List<String> validIngredientIds;
+    private String authToken;
+    private List<String> ingredientIds;
 
+    // Подготовка данных для тестов
     @Before
-    public void setUp() {
-        super.setUp();
-        validIngredientIds = IngredientApi.getValidIngredientIds();
-        accessToken = UserApi.registerRandomUser();
+    public void setupTestEnvironment() {
+        super.configureRestAssured();
+        ingredientIds = IngredientApi.fetchIngredientIds();
+        authToken = UserApi.createRandomUser();
     }
 
+    // Очистка данных после тестов
     @After
-    public void tearDown() {
-        if (accessToken != null) {
-            deleteUser(accessToken);
+    public void cleanupEnvironment() {
+        if (authToken != null) {
+            cleanupUser(authToken);
         }
     }
 
     @Test
-    @DisplayName("Получение списка ингредиентов")
-    public void testGetIngredientsList() {
+    @DisplayName("Проверка получения списка ингредиентов")
+    public void checkIngredientsListRetrieval() {
         IngredientApi.getIngredients()
                 .then()
                 .statusCode(SC_OK)
@@ -52,9 +55,9 @@ public class OrderApiTest extends BaseApiTest {
     }
 
     @Test
-    @DisplayName("Создание заказа с авторизацией и валидными ингредиентами")
-    public void testCreateOrderWithAuthAndValidIngredients() {
-        OrderApi.createOrder(accessToken, validIngredientIds.subList(0, 2))
+    @DisplayName("Проверка создания заказа с авторизацией")
+    public void checkOrderCreationWithAuth() {
+        submitOrder(authToken, ingredientIds.subList(0, 2))
                 .then()
                 .statusCode(SC_OK)
                 .body("success", equalTo(true))
@@ -63,18 +66,18 @@ public class OrderApiTest extends BaseApiTest {
     }
 
     @Test
-    @DisplayName("Создание заказа без авторизации")
-    public void testCreateOrderWithoutAuth() {
-        OrderApi.createOrderWithoutAuth(validIngredientIds.subList(0, 2))
+    @DisplayName("Проверка создания заказа без авторизации")
+    public void checkOrderCreationWithoutAuth() {
+        OrderApi.submitOrderWithoutAuth(ingredientIds.subList(0, 2))
                 .then()
                 .statusCode(SC_OK)
                 .body("success", equalTo(true));
     }
 
     @Test
-    @DisplayName("Создание заказа без ингредиентов")
-    public void testCreateOrderWithoutIngredients() {
-        OrderApi.createOrderWithoutAuth(Collections.emptyList())
+    @DisplayName("Проверка ошибки при создании заказа без ингредиентов")
+    public void checkOrderCreationFailureWithoutIngredients() {
+        OrderApi.submitOrderWithoutAuth(Collections.emptyList())
                 .then()
                 .statusCode(SC_BAD_REQUEST)
                 .body("success", equalTo(false))
@@ -82,22 +85,23 @@ public class OrderApiTest extends BaseApiTest {
     }
 
     @Test
-    @DisplayName("Создание заказа с невалидными ингредиентами")
-    public void testCreateOrderWithInvalidIngredients() {
-        OrderApi.createOrderWithoutAuth(Arrays.asList("invalid_hash_1", "invalid_hash_2"))
+    @DisplayName("Проверка ошибки при создании заказа с невалидными ингредиентами")
+    public void checkOrderCreationFailureWithInvalidIngredients() {
+        OrderApi.submitOrderWithoutAuth(Arrays.asList("invalid_id_1", "invalid_id_2"))
                 .then()
-                .statusCode(SC_INTERNAL_SERVER_ERROR);
+                .statusCode(SC_BAD_REQUEST)
+                .body("success", equalTo(false))
+                .body("message", equalTo("One or more ids provided are incorrect"));
     }
 
     @Test
-    @DisplayName("Получение заказов пользователя")
-    public void testGetUserOrders() {
-        // Создаем заказ для пользователя
-        OrderApi.createOrder(accessToken, validIngredientIds.subList(0, 2))
+    @DisplayName("Проверка получения заказов пользователя")
+    public void checkUserOrdersRetrieval() {
+        submitOrder(authToken, ingredientIds.subList(0, 2))
                 .then()
                 .statusCode(SC_OK);
 
-        OrderApi.getUserOrders(accessToken)
+        OrderApi.fetchUserOrders(authToken)
                 .then()
                 .statusCode(SC_OK)
                 .body("success", equalTo(true))
@@ -105,5 +109,9 @@ public class OrderApiTest extends BaseApiTest {
                 .body("orders[0].number", notNullValue())
                 .body("orders[0].ingredients", not(empty()));
     }
-}
 
+    // Вспомогательный метод для создания заказа
+    private Response submitOrder(String token, List<String> ingredients) {
+        return OrderApi.submitOrderWithAuth(token, ingredients);
+    }
+}

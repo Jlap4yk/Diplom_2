@@ -10,8 +10,10 @@ import static io.restassured.RestAssured.given;
 
 @UtilityClass
 public class IngredientApi {
+    // Конечная точка API для ингредиентов
     private static final String INGREDIENTS_ENDPOINT = "/api/ingredients";
 
+    // Получение списка ингредиентов
     @Step("Получение списка ингредиентов")
     public static Response getIngredients() {
         return given()
@@ -19,8 +21,9 @@ public class IngredientApi {
                 .get(INGREDIENTS_ENDPOINT);
     }
 
-    @Step("Получение валидных ID ингредиентов")
-    public static List<String> getValidIngredientIds() {
+    // Получение идентификаторов ингредиентов
+    @Step("Извлечение идентификаторов ингредиентов")
+    public static List<String> fetchIngredientIds() {
         return getIngredients()
                 .jsonPath()
                 .getList("data._id");

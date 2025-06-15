@@ -2,7 +2,6 @@ import com.github.javafaker.Faker;
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
 import io.qameta.allure.junit4.DisplayName;
-
 import io.restassured.response.Response;
 import org.junit.After;
 import org.junit.Before;
@@ -13,58 +12,57 @@ import ru.models.User;
 
 import static org.apache.http.HttpStatus.SC_OK;
 import static org.apache.http.HttpStatus.SC_UNAUTHORIZED;
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.emptyString;
+import static org.hamcrest.Matchers.not;
 
 @Epic("Stellar Burgers API")
-@Feature("Авторизация и регистрация пользователей")
+@Feature("Тестирование авторизации и регистрации")
 public class AuthApiTest extends BaseApiTest {
 
     private User testUser;
-    private String accessToken;
+    private String authToken;
     private String refreshToken;
     private Faker faker;
-    private String correctPassword;
+    private String validPassword;
 
+    // Инициализация тестового окружения
     @Before
-    public void setUp() {
-        super.setUp();
+    public void initializeTestData() {
+        super.configureRestAssured();
         faker = new Faker();
+        validPassword = faker.internet().password(8, 16, true, true, true);
 
-        correctPassword = faker.internet().password(8, 16, true, true, true);
+        // Создание тестового пользователя
         testUser = User.builder()
                 .email(faker.internet().emailAddress())
-                .password(correctPassword)
+                .password(validPassword)
                 .name(faker.name().fullName())
                 .build();
 
-        // Регистрируем пользователя перед тестами
-        Response registerResponse = UserApi.registerUser(testUser);
-        registerResponse.then()
+        // Регистрация пользователя
+        Response registrationResponse = UserApi.createUserAccount(testUser);
+        registrationResponse.then()
                 .statusCode(SC_OK)
                 .body("success", equalTo(true));
 
-        accessToken = registerResponse.path("accessToken");
-        refreshToken = registerResponse.path("refreshToken");
+        authToken = registrationResponse.path("accessToken");
+        refreshToken = registrationResponse.path("refreshToken");
     }
 
+    // Очистка тестовых данных
     @After
-    public void tearDown() {
-        if (accessToken != null) {
-            deleteUser(accessToken);
+    public void cleanupTestData() {
+        if (authToken != null) {
+            cleanupUser(authToken);
         }
     }
 
     @Test
-    @DisplayName("Успешная регистрация пользователя")
-    public void testSuccessfulUserRegistration() {
-        User newUser = User.builder()
-                .email(faker.internet().emailAddress())
-                .password(faker.internet().password(8, 16, true, true, true))
-                .name(faker.name().fullName())
-                .build();
-
-        Response response = UserApi.registerUser(newUser);
+    @DisplayName("Проверка успешной регистрации нового пользователя")
+    public void checkSuccessfulRegistration() {
+        User newUser = createRandomUser();
+        Response response = UserApi.createUserAccount(newUser);
 
         response.then()
                 .statusCode(SC_OK)
@@ -74,15 +72,15 @@ public class AuthApiTest extends BaseApiTest {
                 .body("user.email", equalTo(newUser.getEmail()))
                 .body("user.name", equalTo(newUser.getName()));
 
-        // Удаляем созданного пользователя после теста
+        // Удаление созданного пользователя
         String newUserToken = response.path("accessToken");
-        deleteUser(newUserToken);
+        cleanupUser(newUserToken);
     }
 
     @Test
-    @DisplayName("Успешный вход существующего пользователя")
-    public void testSuccessfulLogin() {
-        UserApi.login(new Credentials(testUser.getEmail(), testUser.getPassword()))
+    @DisplayName("Проверка успешной авторизации пользователя")
+    public void checkSuccessfulLogin() {
+        UserApi.authenticateUser(new Credentials(testUser.getEmail(), testUser.getPassword()))
                 .then()
                 .statusCode(SC_OK)
                 .body("success", equalTo(true))
@@ -93,11 +91,10 @@ public class AuthApiTest extends BaseApiTest {
     }
 
     @Test
-    @DisplayName("Неудачный вход: правильный email, но неверный пароль")
-    public void testFailedLoginWithCorrectEmailButWrongPassword() {
-        String wrongPassword = correctPassword + "!"; // Делаем заведомо неверный пароль
-
-        UserApi.login(new Credentials(testUser.getEmail(), wrongPassword))
+    @DisplayName("Проверка ошибки авторизации с неверным паролем")
+    public void checkLoginFailureWithWrongPassword() {
+        String invalidPassword = validPassword + "!";
+        UserApi.authenticateUser(new Credentials(testUser.getEmail(), invalidPassword))
                 .then()
                 .statusCode(SC_UNAUTHORIZED)
                 .body("success", equalTo(false))
@@ -105,16 +102,22 @@ public class AuthApiTest extends BaseApiTest {
     }
 
     @Test
-    @DisplayName("Неудачный вход: неверный email, но правильный пароль")
-    public void testFailedLoginWithWrongEmailButCorrectPassword() {
-        String wrongEmail = "wrong_" + testUser.getEmail();
-
-        UserApi.login(new Credentials(wrongEmail, correctPassword))
+    @DisplayName("Проверка ошибки авторизации с неверным email")
+    public void checkLoginFailureWithWrongEmail() {
+        String invalidEmail = "wrong_" + testUser.getEmail();
+        UserApi.authenticateUser(new Credentials(invalidEmail, validPassword))
                 .then()
                 .statusCode(SC_UNAUTHORIZED)
                 .body("success", equalTo(false))
                 .body("message", equalTo("email or password are incorrect"));
     }
+
+    // Вспомогательный метод для создания случайного пользователя
+    private User createRandomUser() {
+        return User.builder()
+                .email(faker.internet().emailAddress())
+                .password(faker.internet().password(8, 16, true, true, true))
+                .name(faker.name().fullName())
+                .build();
+    }
 }
-
-
